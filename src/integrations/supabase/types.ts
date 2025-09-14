@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calorie_history: {
+        Row: {
+          activity_level: number
+          created_at: string
+          gender: string
+          height: number
+          id: string
+          maintenance_calories: number
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          activity_level: number
+          created_at?: string
+          gender: string
+          height: number
+          id?: string
+          maintenance_calories: number
+          user_id: string
+          weight: number
+        }
+        Update: {
+          activity_level?: number
+          created_at?: string
+          gender?: string
+          height?: number
+          id?: string
+          maintenance_calories?: number
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      meal_plans: {
+        Row: {
+          created_at: string
+          id: string
+          meal_plan: Json
+          meal_type: string
+          target_calories: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meal_plan: Json
+          meal_type: string
+          target_calories: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meal_plan?: Json
+          meal_type?: string
+          target_calories?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          activity_level: number | null
+          created_at: string
+          gender: string | null
+          height: number | null
+          id: string
+          updated_at: string
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          activity_level?: number | null
+          created_at?: string
+          gender?: string | null
+          height?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          activity_level?: number | null
+          created_at?: string
+          gender?: string | null
+          height?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
