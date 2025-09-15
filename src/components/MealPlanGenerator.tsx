@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Utensils, Download, Leaf, Beef, Clock, Target } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Utensils, Download, Leaf, Beef, Clock, Target, History, Egg } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MealPlanGeneratorProps {
   onClose: () => void;
@@ -36,105 +39,42 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
   const [formData, setFormData] = useState({
     targetCalories: "",
     dietType: "",
-    mealsPerDay: "4"
+    mealsPerDay: "3 meals",
+    cuisineType: "north-indian"
   });
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [mealHistory, setMealHistory] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("generator");
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Sample meal plans - In real implementation, this would come from Gemini API
-  const sampleVegMealPlan: MealPlan = {
-    totalCalories: 2000,
-    totalProtein: 80,
-    totalCarbs: 250,
-    totalFats: 67,
-    meals: [
-      {
-        name: "Breakfast",
-        time: "7:00 AM",
-        items: ["2 Whole Wheat Parathas", "1 Cup Dal", "1 Glass Milk", "1 Apple"],
-        calories: 450,
-        protein: 18,
-        carbs: 65,
-        fats: 12
-      },
-      {
-        name: "Lunch", 
-        time: "1:00 PM",
-        items: ["1.5 Cups Rice", "Dal Tadka", "Mixed Vegetable Sabzi", "1 Cup Curd", "Salad"],
-        calories: 600,
-        protein: 22,
-        carbs: 85,
-        fats: 18
-      },
-      {
-        name: "Evening Snack",
-        time: "4:00 PM", 
-        items: ["1 Cup Masala Chai", "4 Marie Biscuits", "Handful Almonds"],
-        calories: 250,
-        protein: 8,
-        carbs: 30,
-        fats: 12
-      },
-      {
-        name: "Dinner",
-        time: "8:00 PM",
-        items: ["3 Rotis", "Rajma Curry", "Jeera Rice", "Raita", "Green Salad"],
-        calories: 700,
-        protein: 32,
-        carbs: 70,
-        fats: 25
-      }
-    ]
-  };
+  useEffect(() => {
+    if (user) {
+      fetchMealHistory();
+    }
+  }, [user]);
 
-  const sampleNonVegMealPlan: MealPlan = {
-    totalCalories: 2000,
-    totalProtein: 100,
-    totalCarbs: 200,
-    totalFats: 67,
-    meals: [
-      {
-        name: "Breakfast",
-        time: "7:00 AM", 
-        items: ["2 Egg Paratha", "1 Glass Milk", "1 Banana"],
-        calories: 480,
-        protein: 25,
-        carbs: 55,
-        fats: 15
-      },
-      {
-        name: "Lunch",
-        time: "1:00 PM",
-        items: ["1.5 Cups Rice", "Chicken Curry (150g)", "Dal", "Salad"],
-        calories: 650,
-        protein: 35,
-        carbs: 60,
-        fats: 20
-      },
-      {
-        name: "Evening Snack", 
-        time: "4:00 PM",
-        items: ["Boiled Eggs (2)", "1 Cup Green Tea", "Handful Nuts"],
-        calories: 280,
-        protein: 15,
-        carbs: 8,
-        fats: 18
-      },
-      {
-        name: "Dinner",
-        time: "8:00 PM",
-        items: ["3 Rotis", "Fish Curry (120g)", "Vegetable Sabzi", "Curd"],
-        calories: 590,
-        protein: 25,
-        carbs: 77,
-        fats: 14
-      }
-    ]
+  const fetchMealHistory = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('meal_plans')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setMealHistory(data || []);
+    } catch (error) {
+      console.error('Error fetching meal history:', error);
+    }
   };
 
   const generateMealPlan = async () => {
-    const { targetCalories, dietType } = formData;
+    const { targetCalories, dietType, mealsPerDay, cuisineType } = formData;
     
     if (!targetCalories || !dietType) {
       toast({
@@ -145,48 +85,101 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to generate meal plans.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate API call - In real implementation, call Gemini API here
-    setTimeout(() => {
-      const plan = dietType === "vegetarian" ? sampleVegMealPlan : sampleNonVegMealPlan;
-      
-      // Scale the meal plan to match target calories
-      const scaleFactor = parseInt(targetCalories) / plan.totalCalories;
-      const scaledPlan: MealPlan = {
-        totalCalories: parseInt(targetCalories),
-        totalProtein: Math.round(plan.totalProtein * scaleFactor),
-        totalCarbs: Math.round(plan.totalCarbs * scaleFactor),
-        totalFats: Math.round(plan.totalFats * scaleFactor),
-        meals: plan.meals.map(meal => ({
-          ...meal,
-          calories: Math.round(meal.calories * scaleFactor),
-          protein: Math.round(meal.protein * scaleFactor),
-          carbs: Math.round(meal.carbs * scaleFactor),
-          fats: Math.round(meal.fats * scaleFactor)
-        }))
-      };
+    try {
+      const response = await fetch('/api/generate-meal-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetCalories: parseInt(targetCalories),
+          dietType,
+          mealsPerDay,
+          cuisineType,
+          userId: user.id
+        }),
+      });
 
-      setMealPlan(scaledPlan);
-      setIsLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to generate meal plan');
+      }
+
+      const mealPlan = await response.json();
+      setMealPlan(mealPlan);
+      fetchMealHistory(); // Refresh history
       
       toast({
         title: "Meal Plan Generated!",
-        description: `Your personalized ${dietType} meal plan is ready.`,
+        description: `Your personalized ${dietType} ${cuisineType} meal plan is ready.`,
       });
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate meal plan. Please try again.",
+        variant: "destructive"
+      });
+      console.error('Error generating meal plan:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const downloadPDF = () => {
+    if (!mealPlan) return;
+
+    const content = `
+MEAL PLAN
+=========
+
+Target Calories: ${mealPlan.totalCalories}
+Total Protein: ${mealPlan.totalProtein}g
+Total Carbs: ${mealPlan.totalCarbs}g
+Total Fats: ${mealPlan.totalFats}g
+
+MEALS:
+------
+${mealPlan.meals.map(meal => `
+${meal.name} (${meal.time})
+${meal.items.map(item => `• ${item}`).join('\n')}
+Calories: ${meal.calories} | Protein: ${meal.protein}g | Carbs: ${meal.carbs}g | Fats: ${meal.fats}g
+`).join('\n')}
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `meal-plan-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
     toast({
-      title: "PDF Download",
-      description: "PDF generation will be available after Supabase integration.",
+      title: "Downloaded!",
+      description: "Your meal plan has been downloaded.",
     });
+  };
+
+  const loadHistoryMealPlan = (historyItem: any) => {
+    setMealPlan(historyItem.meal_plan);
+    setActiveTab("generator");
   };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Utensils className="h-5 w-5 text-primary" />
@@ -194,157 +187,268 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {!mealPlan ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Your Meal Plan</CardTitle>
-                <CardDescription>
-                  Get personalized Indian meal plans with detailed nutrition information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="calories">Target Calories</Label>
-                    <Input
-                      id="calories"
-                      type="number"
-                      placeholder="2000"
-                      value={formData.targetCalories}
-                      onChange={(e) => setFormData({ ...formData, targetCalories: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="diet">Diet Preference</Label>
-                    <Select onValueChange={(value) => setFormData({ ...formData, dietType: value })}>
-                      <SelectTrigger className="input-field">
-                        <SelectValue placeholder="Select diet type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vegetarian">
-                          <div className="flex items-center gap-2">
-                            <Leaf className="h-4 w-4 text-green-600" />
-                            Vegetarian
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="non-vegetarian">
-                          <div className="flex items-center gap-2">
-                            <Beef className="h-4 w-4 text-red-600" />
-                            Non-Vegetarian
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="generator">Generator</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
 
-                <Button 
-                  onClick={generateMealPlan}
-                  className="w-full hero-button"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Generating Your Meal Plan..." : "Generate Meal Plan"}
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              {/* Summary Card */}
+          <TabsContent value="generator" className="space-y-6">
+            {!mealPlan ? (
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-primary" />
-                      Daily Nutrition Summary
-                    </CardTitle>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      {formData.dietType === "vegetarian" ? (
-                        <Leaf className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Beef className="h-3 w-3 text-red-600" />
-                      )}
-                      {formData.dietType}
-                    </Badge>
-                  </div>
+                  <CardTitle>Create Your Meal Plan</CardTitle>
+                  <CardDescription>
+                    Get personalized meal plans with detailed nutrition information
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-primary/10 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Calories</p>
-                      <p className="text-2xl font-bold text-primary">{mealPlan.totalCalories}</p>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="calories">Target Calories</Label>
+                      <Input
+                        id="calories"
+                        type="number"
+                        placeholder="2000"
+                        value={formData.targetCalories}
+                        onChange={(e) => setFormData({ ...formData, targetCalories: e.target.value })}
+                        className="input-field"
+                      />
                     </div>
-                    <div className="text-center p-3 bg-success/10 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Protein</p>
-                      <p className="text-2xl font-bold text-success">{mealPlan.totalProtein}g</p>
-                    </div>
-                    <div className="text-center p-3 bg-warning/10 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Carbs</p>
-                      <p className="text-2xl font-bold text-warning">{mealPlan.totalCarbs}g</p>
-                    </div>
-                    <div className="text-center p-3 bg-secondary/10 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Fats</p>
-                      <p className="text-2xl font-bold text-secondary">{mealPlan.totalFats}g</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="diet">Diet Preference</Label>
+                      <Select onValueChange={(value) => setFormData({ ...formData, dietType: value })}>
+                        <SelectTrigger className="input-field">
+                          <SelectValue placeholder="Select diet type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="vegetarian">
+                            <div className="flex items-center gap-2">
+                              <Leaf className="h-4 w-4 text-green-600" />
+                              Vegetarian
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="non-vegetarian">
+                            <div className="flex items-center gap-2">
+                              <Beef className="h-4 w-4 text-red-600" />
+                              Non-Vegetarian
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="eggeatarian">
+                            <div className="flex items-center gap-2">
+                              <Egg className="h-4 w-4 text-orange-600" />
+                              Eggeatarian
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="vegan">
+                            <div className="flex items-center gap-2">
+                              <Leaf className="h-4 w-4 text-green-800" />
+                              Vegan
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="meals">Number of Meals</Label>
+                      <Select onValueChange={(value) => setFormData({ ...formData, mealsPerDay: value })}>
+                        <SelectTrigger className="input-field">
+                          <SelectValue placeholder="Select meals per day" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3 meals">3 Meals</SelectItem>
+                          <SelectItem value="3 meals + 1 snack">3 Meals + 1 Snack</SelectItem>
+                          <SelectItem value="3 meals + 2 snacks">3 Meals + 2 Snacks</SelectItem>
+                          <SelectItem value="4 meals">4 Meals</SelectItem>
+                          <SelectItem value="5 meals">5 Small Meals</SelectItem>
+                          <SelectItem value="6 meals">6 Small Meals</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cuisine">Cuisine Type</Label>
+                      <Select onValueChange={(value) => setFormData({ ...formData, cuisineType: value })}>
+                        <SelectTrigger className="input-field">
+                          <SelectValue placeholder="Select cuisine type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="north-indian">North Indian</SelectItem>
+                          <SelectItem value="south-indian">South Indian</SelectItem>
+                          <SelectItem value="maharashtrian">Maharashtrian</SelectItem>
+                          <SelectItem value="gujarati">Gujarati</SelectItem>
+                          <SelectItem value="punjabi">Punjabi</SelectItem>
+                          <SelectItem value="bengali">Bengali</SelectItem>
+                          <SelectItem value="continental">Continental</SelectItem>
+                          <SelectItem value="mediterranean">Mediterranean</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={generateMealPlan}
+                    className="w-full hero-button"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Generating Your Meal Plan..." : "Generate Meal Plan"}
+                  </Button>
                 </CardContent>
               </Card>
-
-              {/* Meal Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mealPlan.meals.map((meal, index) => (
-                  <Card key={index} className="feature-card">
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>{meal.name}</span>
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {meal.time}
-                        </Badge>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Target className="h-5 w-5 text-primary" />
+                        Daily Nutrition Summary
                       </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-1">
-                        {meal.items.map((item, itemIndex) => (
-                          <p key={itemIndex} className="text-sm text-muted-foreground">
-                            • {item}
-                          </p>
-                        ))}
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        {formData.dietType === "vegetarian" ? (
+                          <Leaf className="h-3 w-3 text-green-600" />
+                        ) : formData.dietType === "eggeatarian" ? (
+                          <Egg className="h-3 w-3 text-orange-600" />
+                        ) : formData.dietType === "vegan" ? (
+                          <Leaf className="h-3 w-3 text-green-800" />
+                        ) : (
+                          <Beef className="h-3 w-3 text-red-600" />
+                        )}
+                        {formData.dietType}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-3 bg-primary/10 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Calories</p>
+                        <p className="text-2xl font-bold text-primary">{mealPlan.totalCalories}</p>
                       </div>
-                      <Separator />
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="font-medium">Calories:</span> {meal.calories}
-                        </div>
-                        <div>
-                          <span className="font-medium">Protein:</span> {meal.protein}g
-                        </div>
-                        <div>
-                          <span className="font-medium">Carbs:</span> {meal.carbs}g
-                        </div>
-                        <div>
-                          <span className="font-medium">Fats:</span> {meal.fats}g
-                        </div>
+                      <div className="text-center p-3 bg-success/10 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Protein</p>
+                        <p className="text-2xl font-bold text-success">{mealPlan.totalProtein}g</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <div className="text-center p-3 bg-warning/10 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Carbs</p>
+                        <p className="text-2xl font-bold text-warning">{mealPlan.totalCarbs}g</p>
+                      </div>
+                      <div className="text-center p-3 bg-secondary/10 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Fats</p>
+                        <p className="text-2xl font-bold text-secondary">{mealPlan.totalFats}g</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Button onClick={() => setMealPlan(null)} variant="outline" className="flex-1">
-                  Generate New Plan
-                </Button>
-                <Button onClick={downloadPDF} className="flex-1 hero-button flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  Download PDF
-                </Button>
+                {/* Meal Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {mealPlan.meals.map((meal, index) => (
+                    <Card key={index} className="feature-card">
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span>{meal.name}</span>
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {meal.time}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="space-y-1">
+                          {meal.items.map((item, itemIndex) => (
+                            <p key={itemIndex} className="text-sm text-muted-foreground">
+                              • {item}
+                            </p>
+                          ))}
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium">Calories:</span> {meal.calories}
+                          </div>
+                          <div>
+                            <span className="font-medium">Protein:</span> {meal.protein}g
+                          </div>
+                          <div>
+                            <span className="font-medium">Carbs:</span> {meal.carbs}g
+                          </div>
+                          <div>
+                            <span className="font-medium">Fats:</span> {meal.fats}g
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <Button onClick={() => setMealPlan(null)} variant="outline" className="flex-1">
+                    Generate New Plan
+                  </Button>
+                  <Button onClick={downloadPDF} className="flex-1 hero-button flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Meal Plan History
+                </CardTitle>
+                <CardDescription>
+                  View and reload your previously generated meal plans
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {mealHistory.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No meal plans generated yet. Create your first meal plan!
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {mealHistory.map((item, index) => (
+                      <Card key={item.id} className="p-4 hover:bg-accent/5 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="font-medium">
+                              {item.target_calories} Calories • {item.meal_type}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(item.created_at).toLocaleDateString()} at {new Date(item.created_at).toLocaleTimeString()}
+                            </p>
+                            {item.meal_plan?.preferences && (
+                              <div className="flex gap-2 mt-2">
+                                <Badge variant="outline">{item.meal_plan.preferences.mealsPerDay}</Badge>
+                                <Badge variant="outline">{item.meal_plan.preferences.cuisineType}</Badge>
+                              </div>
+                            )}
+                          </div>
+                          <Button 
+                            onClick={() => loadHistoryMealPlan(item)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Load Plan
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
