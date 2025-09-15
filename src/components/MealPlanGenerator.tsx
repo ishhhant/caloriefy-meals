@@ -97,26 +97,19 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/generate-meal-plan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('generate-meal-plan', {
+        body: {
           targetCalories: parseInt(targetCalories),
           dietType,
           mealsPerDay,
           cuisineType,
           userId: user.id
-        }),
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate meal plan');
-      }
+      if (error) throw error;
 
-      const mealPlan = await response.json();
-      setMealPlan(mealPlan);
+      setMealPlan(data);
       fetchMealHistory(); // Refresh history
       
       toast({
