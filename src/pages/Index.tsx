@@ -3,15 +3,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calculator, Users, Download, TrendingUp, User, LogOut } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import heroImage from "@/assets/hero-nutrition.jpg";
 import { CalorieCalculator } from "@/components/CalorieCalculator";
 import { MealPlanGenerator } from "@/components/MealPlanGenerator";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showMealPlan, setShowMealPlan] = useState(false);
   const { user, signOut, loading } = useAuth();
+  const { toast } = useToast();
 
   const features = [
     {
@@ -48,29 +51,32 @@ const Index = () => {
                 NutriCalc
               </h1>
             </div>
-            {loading ? (
-              <div className="w-20 h-10 bg-muted animate-pulse rounded-md" />
-            ) : user ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 text-sm">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">{user.email}</span>
+            <div className="flex items-center space-x-3">
+              <ThemeToggle />
+              {loading ? (
+                <div className="w-20 h-10 bg-muted animate-pulse rounded-md" />
+              ) : user ? (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">{user.email}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={signOut}
+                    className="border-destructive text-destructive hover:bg-destructive hover:text-white"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden sm:inline ml-2">Sign Out</span>
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={signOut}
-                  className="border-destructive text-destructive hover:bg-destructive hover:text-white"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-2">Sign Out</span>
+              ) : (
+                <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                  <Link to="/auth">Sign In</Link>
                 </Button>
-              </div>
-            ) : (
-              <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
-                <Link to="/auth">Sign In</Link>
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -96,14 +102,34 @@ const Index = () => {
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
-                  onClick={() => setShowCalculator(true)}
+                  onClick={() => {
+                    if (!user) {
+                      toast({
+                        title: "Authentication Required",
+                        description: "Please sign in to use the calorie calculator.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    setShowCalculator(true);
+                  }}
                   className="hero-button text-lg"
                   size="lg"
                 >
                   Calculate Calories
                 </Button>
                 <Button 
-                  onClick={() => setShowMealPlan(true)}
+                  onClick={() => {
+                    if (!user) {
+                      toast({
+                        title: "Authentication Required", 
+                        description: "Please sign in to generate meal plans.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    setShowMealPlan(true);
+                  }}
                   variant="outline" 
                   size="lg"
                   className="border-2 border-primary text-primary hover:bg-primary hover:text-white text-lg"
@@ -204,7 +230,17 @@ const Index = () => {
               Join thousands of users who have already started their healthy journey with personalized meal plans.
             </p>
             <Button 
-              onClick={() => setShowCalculator(true)}
+              onClick={() => {
+                if (!user) {
+                  toast({
+                    title: "Authentication Required",
+                    description: "Please sign in to get started with our nutrition tools.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                setShowCalculator(true);
+              }}
               variant="secondary" 
               size="lg"
               className="bg-white text-primary hover:bg-white/90 text-lg px-8 py-4"

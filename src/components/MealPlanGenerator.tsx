@@ -12,6 +12,7 @@ import { Utensils, Download, Leaf, Beef, Clock, Target, History, Egg } from "luc
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import jsPDF from "jspdf";
 
 interface MealPlanGeneratorProps {
   onClose: () => void;
@@ -131,37 +132,76 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
   const downloadPDF = () => {
     if (!mealPlan) return;
 
-    const content = `
-MEAL PLAN
-=========
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let yPosition = 20;
 
-Target Calories: ${mealPlan.totalCalories}
-Total Protein: ${mealPlan.totalProtein}g
-Total Carbs: ${mealPlan.totalCarbs}g
-Total Fats: ${mealPlan.totalFats}g
+    // Title
+    pdf.setFontSize(20);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('PERSONALIZED MEAL PLAN', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 20;
 
-MEALS:
-------
-${mealPlan.meals.map(meal => `
-${meal.name} (${meal.time})
-${meal.items.map(item => `• ${item}`).join('\n')}
-Calories: ${meal.calories} | Protein: ${meal.protein}g | Carbs: ${meal.carbs}g | Fats: ${meal.fats}g
-`).join('\n')}
-    `;
+    // Summary
+    pdf.setFontSize(14);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Daily Nutrition Summary', 20, yPosition);
+    yPosition += 10;
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meal-plan-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    pdf.setFontSize(12);
+    pdf.setFont(undefined, 'normal');
+    pdf.text(`Target Calories: ${mealPlan.totalCalories}`, 20, yPosition);
+    yPosition += 7;
+    pdf.text(`Total Protein: ${mealPlan.totalProtein}g`, 20, yPosition);
+    yPosition += 7;
+    pdf.text(`Total Carbs: ${mealPlan.totalCarbs}g`, 20, yPosition);
+    yPosition += 7;
+    pdf.text(`Total Fats: ${mealPlan.totalFats}g`, 20, yPosition);
+    yPosition += 15;
+
+    // Meals
+    mealPlan.meals.forEach((meal, index) => {
+      // Check if we need a new page
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`${meal.name} (${meal.time})`, 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      
+      // Food items
+      meal.items.forEach(item => {
+        if (yPosition > 270) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.text(`• ${item}`, 25, yPosition);
+        yPosition += 5;
+      });
+
+      yPosition += 5;
+      
+      // Nutrition info
+      pdf.text(`Calories: ${meal.calories} | Protein: ${meal.protein}g | Carbs: ${meal.carbs}g | Fats: ${meal.fats}g`, 25, yPosition);
+      yPosition += 15;
+    });
+
+    // Footer
+    pdf.setFontSize(8);
+    pdf.text(`Generated on ${new Date().toLocaleDateString()}`, 20, pdf.internal.pageSize.getHeight() - 10);
+
+    // Save PDF
+    pdf.save(`meal-plan-${new Date().toISOString().split('T')[0]}.pdf`);
 
     toast({
       title: "Downloaded!",
-      description: "Your meal plan has been downloaded.",
+      description: "Your meal plan PDF has been downloaded.",
     });
   };
 

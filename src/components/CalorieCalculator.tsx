@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calculator, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CalorieCalculatorProps {
   onClose: () => void;
@@ -30,6 +32,7 @@ export const CalorieCalculator = ({ onClose }: CalorieCalculatorProps) => {
   const [result, setResult] = useState<CalorieResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const activityLevels = [
     { value: "1.2", label: "Level 1 - Sedentary (little/no exercise)" },
@@ -39,13 +42,22 @@ export const CalorieCalculator = ({ onClose }: CalorieCalculatorProps) => {
     { value: "1.9", label: "Level 5 - Super active (2x/day, intense workouts)" }
   ];
 
-  const calculateCalories = () => {
+  const calculateCalories = async () => {
     const { height, weight, age, gender, activityLevel } = formData;
     
     if (!height || !weight || !age || !gender || !activityLevel) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields to calculate your calories.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to use the calorie calculator.",
         variant: "destructive"
       });
       return;
@@ -70,19 +82,44 @@ export const CalorieCalculator = ({ onClose }: CalorieCalculatorProps) => {
     const weightLoss = maintenance - 200;
     const weightGain = maintenance + 200;
 
-    setTimeout(() => {
+    try {
+      // Save to database
+      await supabase.from('calorie_history').insert({
+        user_id: user.id,
+        height: parseFloat(height),
+        weight: parseFloat(weight),
+        gender,
+        activity_level: parseFloat(activityLevel),
+        maintenance_calories: maintenance
+      });
+
       setResult({
         maintenance,
         weightLoss,
         weightGain,
         bmr: Math.round(bmr)
       });
-      setIsLoading(false);
+      
+      toast({
+        title: "Calculation Complete!",
+        description: "Your personalized calorie targets are ready and saved.",
+      });
+    } catch (error) {
+      console.error('Error saving calorie data:', error);
+      setResult({
+        maintenance,
+        weightLoss,
+        weightGain,
+        bmr: Math.round(bmr)
+      });
+      
       toast({
         title: "Calculation Complete!",
         description: "Your personalized calorie targets are ready.",
       });
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
