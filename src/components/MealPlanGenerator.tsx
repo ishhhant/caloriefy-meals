@@ -98,6 +98,14 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
     setIsLoading(true);
 
     try {
+      console.log('Invoking meal plan generation with:', {
+        targetCalories: parseInt(targetCalories),
+        dietType,
+        mealsPerDay,
+        cuisineType,
+        userId: user.id
+      });
+      
       const { data, error } = await supabase.functions.invoke('generate-meal-plan', {
         body: {
           targetCalories: parseInt(targetCalories),
@@ -108,7 +116,12 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
         }
       });
 
-      if (error) throw error;
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       setMealPlan(data);
       fetchMealHistory(); // Refresh history

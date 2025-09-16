@@ -21,6 +21,8 @@ serve(async (req) => {
       userId 
     } = await req.json();
 
+    console.log('Received request:', { targetCalories, dietType, mealsPerDay, cuisineType, userId });
+
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) {
       throw new Error('GEMINI_API_KEY not found');
@@ -61,6 +63,8 @@ Return response in this exact JSON format:
 
 Ensure all nutritional values are accurate and the total calories match the target. Use authentic ${cuisineType} recipes and ingredients.`;
 
+    console.log('Calling Gemini API with prompt length:', prompt.length);
+
     // Call Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -82,7 +86,9 @@ Ensure all nutritional values are accurate and the total calories match the targ
       }),
     });
 
+    console.log('Gemini API response status:', response.status);
     const data = await response.json();
+    console.log('Gemini API response data:', JSON.stringify(data, null, 2));
     
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
       throw new Error('Invalid response from Gemini API');
@@ -104,11 +110,12 @@ Ensure all nutritional values are accurate and the total calories match the targ
 
     // Store meal plan in database if userId is provided
     if (userId) {
+      console.log('Storing meal plan in database for user:', userId);
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('meal_plans')
         .insert({
           user_id: userId,
@@ -123,6 +130,12 @@ Ensure all nutritional values are accurate and the total calories match the targ
           },
           meal_type: `${dietType}-${cuisineType}`
         });
+
+      if (insertError) {
+        console.error('Error storing meal plan:', insertError);
+        throw new Error(`Failed to store meal plan: ${insertError.message}`);
+      }
+      console.log('Meal plan stored successfully');
     }
 
     return new Response(JSON.stringify(mealPlan), {
