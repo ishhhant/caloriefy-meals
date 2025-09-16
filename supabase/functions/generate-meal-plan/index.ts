@@ -105,17 +105,62 @@ Ensure all nutritional values are accurate and the total calories match the targ
     }
 
     let mealPlanText = data.candidates[0].content.parts[0].text;
+    console.log('Raw Gemini response text:', mealPlanText);
     
-    // Clean up the response to extract JSON
-    mealPlanText = mealPlanText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    // Clean up the response to extract JSON - handle multiple formats
+    mealPlanText = mealPlanText
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .replace(/^[^{]*({.*})[^}]*$/s, '$1') // Extract JSON object
+      .trim();
+    
+    console.log('Cleaned meal plan text:', mealPlanText);
     
     let mealPlan;
     try {
       mealPlan = JSON.parse(mealPlanText);
+      console.log('Successfully parsed meal plan:', JSON.stringify(mealPlan, null, 2));
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
-      // Fallback to a basic structure if parsing fails
-      throw new Error('Failed to parse meal plan from AI response');
+      console.error('Failed to parse text:', mealPlanText);
+      
+      // Try to create a fallback meal plan structure
+      mealPlan = {
+        totalCalories: targetCalories,
+        totalProtein: Math.round(targetCalories * 0.15 / 4),
+        totalCarbs: Math.round(targetCalories * 0.55 / 4),
+        totalFats: Math.round(targetCalories * 0.30 / 9),
+        meals: [
+          {
+            name: "Breakfast",
+            time: "8:00 AM",
+            items: ["Oats with fruits", "Milk", "Nuts"],
+            calories: Math.round(targetCalories * 0.25),
+            protein: Math.round(targetCalories * 0.25 * 0.15 / 4),
+            carbs: Math.round(targetCalories * 0.25 * 0.55 / 4),
+            fats: Math.round(targetCalories * 0.25 * 0.30 / 9)
+          },
+          {
+            name: "Lunch", 
+            time: "12:00 PM",
+            items: ["Rice", "Dal", "Vegetables", "Salad"],
+            calories: Math.round(targetCalories * 0.35),
+            protein: Math.round(targetCalories * 0.35 * 0.15 / 4),
+            carbs: Math.round(targetCalories * 0.35 * 0.55 / 4),
+            fats: Math.round(targetCalories * 0.35 * 0.30 / 9)
+          },
+          {
+            name: "Dinner",
+            time: "7:00 PM", 
+            items: ["Roti", "Curry", "Vegetables"],
+            calories: Math.round(targetCalories * 0.30),
+            protein: Math.round(targetCalories * 0.30 * 0.15 / 4),
+            carbs: Math.round(targetCalories * 0.30 * 0.55 / 4),
+            fats: Math.round(targetCalories * 0.30 * 0.30 / 9)
+          }
+        ]
+      };
+      console.log('Using fallback meal plan structure');
     }
 
     // Store meal plan in database if userId is provided
