@@ -24,7 +24,9 @@ serve(async (req) => {
     console.log('Received request:', { targetCalories, dietType, mealsPerDay, cuisineType, userId });
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    console.log('GEMINI_API_KEY available:', !!geminiApiKey);
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not found in environment variables');
       throw new Error('GEMINI_API_KEY not found');
     }
 
@@ -87,11 +89,19 @@ Ensure all nutritional values are accurate and the total calories match the targ
     });
 
     console.log('Gemini API response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API request failed with status ${response.status}: ${errorText}`);
+    }
+
     const data = await response.json();
     console.log('Gemini API response data:', JSON.stringify(data, null, 2));
     
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error('Invalid response from Gemini API');
+      console.error('Invalid Gemini API response structure:', data);
+      throw new Error('Invalid response from Gemini API - no content generated');
     }
 
     let mealPlanText = data.candidates[0].content.parts[0].text;
