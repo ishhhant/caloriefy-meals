@@ -25,15 +25,25 @@ serve(async (req) => {
     // Prompt
     const prompt = `Generate a detailed ${dietType} meal plan for ${mealsPerDay} meals with ${cuisineType} cuisine for ${targetCalories} calories per day.
 
+IMPORTANT GUIDELINES:
+- This meal plan is for FITNESS-FOCUSED individuals who prioritize health
+- ALL meals MUST be EASY TO PREPARE AT HOME using simple cooking methods
+- Focus on WHOLE FOODS, NATURAL INGREDIENTS, and NUTRIENT-DENSE options
+- STRICTLY AVOID: junk food, processed foods, fast food, fried items, packaged snacks, sugary items
+- Prioritize: lean proteins, whole grains, fresh vegetables, fruits, healthy fats, legumes
+- Use healthy cooking methods: grilling, steaming, baking, sautéing with minimal oil
+- Include specific portion sizes and weights for meal tracking
+
 Requirements:
 - Diet type: ${dietType} (vegetarian/non-vegetarian/eggeatarian/vegan)
 - Cuisine: ${cuisineType}
 - Number of meals: ${mealsPerDay}
 - Target calories: ${targetCalories}
+- Fitness-focused, home-cooked, clean eating only
 
 For each meal, provide:
 1. Meal name and timing
-2. List of food items with exact weights/quantities
+2. List of food items with exact weights/quantities (home-cooked preparations)
 3. Detailed macronutrient breakdown (calories, protein, carbs, fats)
 
 Return ONLY this JSON (no extra text):
