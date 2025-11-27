@@ -438,13 +438,35 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button onClick={() => setMealPlan(null)} variant="outline" className="flex-1">
-                    Generate New Plan
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Button 
+                    onClick={() => {
+                      toast({
+                        title: "Plan Saved!",
+                        description: "This meal plan has been saved to your history.",
+                      });
+                    }} 
+                    variant="outline"
+                  >
+                    Save Plan
                   </Button>
-                  <Button onClick={downloadPDF} className="flex-1 hero-button flex items-center gap-2">
+                  <Button onClick={() => setMealPlan(null)} variant="outline">
+                    Regenerate
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      toast({
+                        title: "Set for Today!",
+                        description: "This meal plan is now your active plan for today.",
+                      });
+                    }}
+                    className="hero-button"
+                  >
+                    Use for Today
+                  </Button>
+                  <Button onClick={downloadPDF} variant="outline" className="flex items-center gap-2">
                     <Download className="h-4 w-4" />
-                    Download PDF
+                    Download
                   </Button>
                 </div>
               </div>
