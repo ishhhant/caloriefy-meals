@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Utensils, Download, Leaf, Beef, Clock, Target, History, Egg } from "lucide-react";
+import { Utensils, Download, Leaf, Beef, Clock, Target, History, Egg, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -339,7 +339,14 @@ export const MealPlanGenerator = ({ onClose }: MealPlanGeneratorProps) => {
                     className="w-full hero-button"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Generating Your Meal Plan..." : "Generate Meal Plan"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating Your Meal Plan...
+                      </>
+                    ) : (
+                      "Generate Meal Plan"
+                    )}
                   </Button>
                 </CardContent>
               </Card>
